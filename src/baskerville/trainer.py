@@ -486,7 +486,7 @@ class Trainer:
                     valid_r[di].reset_states()
                     valid_r2[di].reset_states()
 
-    def fit_tape(self, seqnn_model):
+    def fit_tape(self, seqnn_model, rank, save_checkpoint_callback=None):
         """Train the model using a custom tf.GradientTape loop."""
         if not self.compiled:
             self.compile(seqnn_model)
@@ -596,10 +596,13 @@ class Trainer:
                 t0 = time.time()
                 train_iter = iter(self.train_data[0].dataset)
                 for si in range(self.train_epoch_batches[0]):
+                    if si % 100 == 0:
+                        print(f"Epoch {ei} - Step {si} - Total Steps {self.train_epoch_batches[0]}", flush=True)
                     x, y = safe_next(train_iter)
                     if self.strategy is not None:
                         train_step_distr(x, y)
                     else:
+                        print("------------ERROR ERROR PAY ATTENTION: NO STRATEGY FOUND", flush=True)
                         train_step(x, y)
                     if ei == epoch_start and si == 0:
                         print("Successful first step!", flush=True)
@@ -648,6 +651,8 @@ class Trainer:
                     unimproved = 0
                     valid_best = valid_best_epoch
                     seqnn_model.save("%s/model_best.h5" % self.out_dir)
+                    if save_checkpoint_callback is not None and rank == 0:
+                        save_checkpoint_callback(epoch=ei, checkpoint_dir=self.out_dir)
                 else:
                     unimproved += 1
                 print("", flush=True)
