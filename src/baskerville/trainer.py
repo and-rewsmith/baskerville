@@ -553,16 +553,29 @@ class Trainer:
                 )
                 train_loss(loss)
 
+            # def eval_step(x, y):
+            #     pred = model(x, training=False)
+            #     loss = self.loss_fn(y, pred) + sum(model.losses)
+            #     valid_loss(loss)
+            #     valid_r(y, pred)
+            #     valid_r2(y, pred)
+
+            # @tf.function
+            # def eval_step_distr(xd, yd):
+            #     return self.strategy.run(eval_step, args=(xd, yd))
             def eval_step(x, y):
                 pred = model(x, training=False)
                 loss = self.loss_fn(y, pred) + sum(model.losses)
-                valid_loss(loss)
-                valid_r(y, pred)
-                valid_r2(y, pred)
+                return loss, pred
 
             @tf.function
             def eval_step_distr(xd, yd):
-                return self.strategy.run(eval_step, args=(xd, yd))
+                loss, pred = self.strategy.run(eval_step, args=(xd, yd))
+                # Reduce the loss across replicas
+                loss = self.strategy.reduce(tf.distribute.ReduceOp.SUM, loss, axis=None)
+                valid_loss(loss)
+                valid_r(yd, pred)
+                valid_r2(yd, pred)
 
         # checkpoint manager
         ckpt = tf.train.Checkpoint(model=seqnn_model.model, optimizer=self.optimizer)
