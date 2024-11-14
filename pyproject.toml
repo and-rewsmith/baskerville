@@ -22,4 +22,3 @@ dev = [
     "pytest==7.1.2"
 ]
 
-[tool.setuptools_scm]
