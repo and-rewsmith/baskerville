@@ -540,7 +540,7 @@ class Trainer:
                     valid_r[di].reset_states()
                     valid_r2[di].reset_states()
 
-    def fit_tape(self, seqnn_model):
+    def fit_tape(self, seqnn_model, rank, save_checkpoint_callback=None):
         """Train the model using a custom tf.GradientTape loop."""
         if not self.compiled:
             self.compile(seqnn_model)
@@ -614,9 +614,9 @@ class Trainer:
                 valid_r(y, pred)
                 valid_r2(y, pred)
 
-            @tf.function
             def eval_step_distr(xd, yd):
-                return self.strategy.run(eval_step, args=(xd, yd))
+                out = self.strategy.run(eval_step, args=(xd, yd))
+                return out
 
         # checkpoint manager
         ckpt = tf.train.Checkpoint(model=seqnn_model.model, optimizer=self.optimizer)
@@ -656,6 +656,8 @@ class Trainer:
                 t0 = time.time()
                 train_iter = iter(self.train_data[0].dataset)
                 for si in range(self.train_epoch_batches[0]):
+                    if si % 100 == 0:
+                        print(f"Epoch {ei} - Step {si} - Total Steps {self.train_epoch_batches[0]}", flush=True)
                     x, y = safe_next(train_iter)
                     if self.strategy is not None:
                         train_step_distr(x, y)
@@ -692,7 +694,7 @@ class Trainer:
                         train_r2_epoch,
                     ),
                     end="",
-                )
+                    flush=True)
 
                 # print validation accuracy
                 valid_loss_epoch = valid_loss.result().numpy()
@@ -709,7 +711,7 @@ class Trainer:
                     " - valid_loss: %.4f - valid_r: %.4f - valid_r2: %.4f"
                     % (valid_loss_epoch, valid_r_epoch, valid_r2_epoch),
                     end="",
-                )
+                    flush=True)
 
                 # upload to gcs
                 if self.gcs:
@@ -727,6 +729,8 @@ class Trainer:
                     unimproved = 0
                     valid_best = valid_best_epoch
                     seqnn_model.save("%s/model_best.h5" % self.out_dir)
+                    if save_checkpoint_callback is not None and rank == 0:
+                        save_checkpoint_callback(epoch=ei, checkpoint_dir=self.out_dir)
                 else:
                     unimproved += 1
                 print("", flush=True)
