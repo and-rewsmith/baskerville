@@ -553,60 +553,16 @@ class Trainer:
                 )
                 train_loss(loss)
 
-            # def eval_step(x, y):
-            #     pred = model(x, training=False)
-            #     loss = self.loss_fn(y, pred) + sum(model.losses)
-            #     # Keep r/r2 updates here like in training
-            #     valid_r(y, pred)
-            #     valid_r2(y, pred)
-            #     # Return loss instead of updating metric
-            #     return loss
-
-            # @tf.function
-            # def eval_step_distr(xd, yd):
-            #     replica_losses = self.strategy.run(eval_step, args=(xd, yd))
-            #     # Reduce and update loss metric after reduction, like in training
-            #     loss = self.strategy.reduce(tf.distribute.ReduceOp.SUM, replica_losses, axis=None)
-            #     valid_loss(loss)
-
             def eval_step(x, y):
-                print("-----------1", flush=True)
                 pred = model(x, training=False)
-                print("-----------2", flush=True)
                 loss = self.loss_fn(y, pred) + sum(model.losses)
-                print("-----------3", flush=True)
                 valid_loss(loss)
-                print("-----------4", flush=True)
                 valid_r(y, pred)
-                print("-----------5", flush=True)
                 valid_r2(y, pred)
-                print("-----------6", flush=True)
 
             def eval_step_distr(xd, yd):
-                print("--------------------a")
                 out = self.strategy.run(eval_step, args=(xd, yd))
-                print("---------------------b")
                 return out
-
-            # def eval_step(x, y):
-            #     pred = model(x, training=False)
-            #     loss = self.loss_fn(y, pred) + sum(model.losses)
-            #     return loss, pred
-
-            # @tf.function
-            # def eval_step_distr(xd, yd):
-            #     print("-----------running eval", flush=True)
-            #     loss, pred = self.strategy.run(eval_step, args=(xd, yd))
-            #     # Reduce the loss across replicas
-            #     print("-----------running reduce", flush=True)
-            #     loss = self.strategy.reduce(tf.distribute.ReduceOp.SUM, loss, axis=None)
-            #     print("-----------validation metrics 1", flush=True)
-            #     valid_loss(loss)
-            #     print("-----------validation metrics 2", flush=True)
-            #     valid_r(yd, pred)
-            #     print("-----------validation metrics 3", flush=True)
-            #     valid_r2(yd, pred)
-            #     print("-----------validation metrics done", flush=True)
 
         # checkpoint manager
         ckpt = tf.train.Checkpoint(model=seqnn_model.model, optimizer=self.optimizer)
@@ -646,28 +602,20 @@ class Trainer:
                     if self.strategy is not None:
                         train_step_distr(x, y)
                     else:
-                        print("------------ERROR ERROR PAY ATTENTION: NO STRATEGY FOUND", flush=True)
                         train_step(x, y)
                     if ei == epoch_start and si == 0:
                         print("Successful first step!", flush=True)
 
                 # evaluate
                 for x, y in self.eval_data[0].dataset:
-                    print("--------------in block for eval", flush=True)
                     if self.strategy is not None:
-                        print("--------------in block for distrib", flush=True)
                         eval_step_distr(x, y)
-                        print("--------------distrib complete", flush=True)
                     else:
-                        print("+++++++++++++++++++++ERROR")
                         eval_step(x, y)
 
                 # print training accuracy
-                print("--------------metric results", flush=True)
                 train_loss_epoch = train_loss.result().numpy()
-                print("--------------metric 2 results", flush=True)
                 train_r_epoch = train_r.result().numpy()
-                print("--------------metric 3 results", flush=True)
                 train_r2_epoch = train_r2.result().numpy()
                 print(
                     "Epoch %d - %ds - train_loss: %.4f - train_r: %.4f - train_r2: %.4f"
@@ -682,11 +630,8 @@ class Trainer:
                     flush=True)
 
                 # print validation accuracy
-                print("--------------val metric results", flush=True)
                 valid_loss_epoch = valid_loss.result().numpy()
-                print("--------------val metric 2 results", flush=True)
                 valid_r_epoch = valid_r.result().numpy()
-                print("--------------val metric 3 results", flush=True)
                 valid_r2_epoch = valid_r2.result().numpy()
                 print(
                     " - valid_loss: %.4f - valid_r: %.4f - valid_r2: %.4f"
@@ -712,19 +657,12 @@ class Trainer:
                 print("", flush=True)
 
                 # reset metrics
-                print("--------------reset states", flush=True)
                 train_loss.reset_states()
-                print("--------------reset states 2", flush=True)
                 train_r.reset_states()
-                print("--------------reset states 3", flush=True)
                 train_r2.reset_states()
-                print("--------------reset states 4", flush=True)
                 valid_loss.reset_states()
-                print("--------------reset states 5", flush=True)
                 valid_r.reset_states()
-                print("--------------reset states 6", flush=True)
                 valid_r2.reset_states()
-                print("--------------reset states 7", flush=True)
 
     def make_optimizer(self):
         """Make optimizer object from given parameters."""
